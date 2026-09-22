@@ -162,5 +162,5 @@ if arquivo is not None:
     - Os dados permitem comparar os estados.
     - O gráfico de barras mostra as diferenças entre os estados.
     - O gráfico de linha mostra a variação ao longo do tempo.
-    - Os dados não permitem determinar as causas das variações observadas.
+    - Os dados não permitem determinar as causas das variações observadas..
     """)

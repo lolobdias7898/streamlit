@@ -10,7 +10,7 @@ st.set_page_config(
 
 st.title("Dashboard de Dados")
 
-df = pd.read_csv("capacidade-instalada-geracao-uf.csv")
+df = pd.read_csv("capacidade-instalada-geracao-uf.csv", encoding="latin-1")
 
 if arquivo is not None:
 

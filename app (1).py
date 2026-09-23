@@ -10,10 +10,7 @@ st.set_page_config(
 
 st.title("Dashboard de Dados")
 
-arquivo = st.file_uploader(
-    "Envie um arquivo CSV",
-    type=["csv"]
-)
+df = pd.read_csv("capacidade-instalada-geracao-uf.csv")
 
 if arquivo is not None:
 

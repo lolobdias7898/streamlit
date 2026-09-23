@@ -21,7 +21,7 @@ st.title("Dashboard de Dados")
 
 df = pd.read_csv(
     "capacidade-instalada-geracao-uf.csv",
-    encoding="latin-1"
+    encoding="latin-1", sep=";"
 )
 
 # Remover espaços dos nomes das colunas

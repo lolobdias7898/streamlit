@@ -1,7 +1,11 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import numpy as np
+
+
+# ==========================================
+# CONFIGURAÇÃO
+# ==========================================
 
 st.set_page_config(
     page_title="Dashboard de Dados",
@@ -10,30 +14,64 @@ st.set_page_config(
 
 st.title("Dashboard de Dados")
 
-arquivo = pd.read_csv(
+
+# ==========================================
+# LEITURA DO ARQUIVO
+# ==========================================
+
+df = pd.read_csv(
     "capacidade-instalada-geracao-uf.csv",
     encoding="latin-1"
 )
 
-# Criar o DataFrame
-df = arquivo
-
 # Remover espaços dos nomes das colunas
 df.columns = df.columns.str.strip()
 
-# Corrigir a coluna de potência
-df["MdaPotenciaInstaladakW"] = pd.to_numeric(
-    df["MdaPotenciaInstaladakW"]
+
+# ==========================================
+# IDENTIFICAR COLUNA DE POTÊNCIA
+# ==========================================
+
+coluna_potencia = None
+
+for coluna in df.columns:
+    nome = coluna.lower().replace(" ", "")
+
+    if "potencia" in nome or "potência" in nome:
+        coluna_potencia = coluna
+        break
+
+if coluna_potencia is None:
+    st.error("Não foi encontrada a coluna de potência no arquivo.")
+
+    st.write("Colunas encontradas:")
+    st.write(df.columns.tolist())
+
+    st.stop()
+
+
+# Converter potência para número
+df[coluna_potencia] = pd.to_numeric(
+    df[coluna_potencia]
     .astype(str)
-    .str.replace(",", "."),
+    .str.replace(",", ".", regex=False),
     errors="coerce"
 )
 
-# Visualização dos dados
+
+# ==========================================
+# VISUALIZAÇÃO DOS DADOS
+# ==========================================
+
 st.subheader("Visualização dos dados")
+
 st.dataframe(df.head())
 
-# Quantidade de registros e colunas
+
+# ==========================================
+# QUANTIDADE DE REGISTROS E COLUNAS
+# ==========================================
+
 col1, col2 = st.columns(2)
 
 col1.metric(
@@ -46,7 +84,11 @@ col2.metric(
     df.shape[1]
 )
 
-# Verificação dos dados
+
+# ==========================================
+# VERIFICAÇÃO DOS DADOS
+# ==========================================
+
 st.subheader("Verificação dos dados")
 
 st.write("Valores ausentes:")
@@ -58,37 +100,55 @@ st.write(df.duplicated().sum())
 st.write("Tipos de dados:")
 st.write(df.dtypes)
 
-# Maior potência
-maior = df.loc[
-    df["MdaPotenciaInstaladakW"].idxmax()
-]
 
-st.subheader("Estado com maior potência instalada")
+# ==========================================
+# MAIOR POTÊNCIA
+# ==========================================
 
-st.write(
-    maior["NomUF"],
-    maior["MdaPotenciaInstaladakW"],
-    "kW"
-)
+df_validos = df.dropna(subset=[coluna_potencia])
 
-# Menor potência
-menor = df.loc[
-    df["MdaPotenciaInstaladakW"].idxmin()
-]
+if not df_validos.empty:
 
-st.subheader("Estado com menor potência instalada")
+    maior = df_validos.loc[
+        df_validos[coluna_potencia].idxmax()
+    ]
 
-st.write(
-    menor["NomUF"],
-    menor["MdaPotenciaInstaladakW"],
-    "kW"
-)
+    st.subheader("Estado com maior potência instalada")
 
-# Gráfico de potência por estado
+    st.write(
+        maior["NomUF"],
+        maior[coluna_potencia],
+        "kW"
+    )
+
+
+# ==========================================
+# MENOR POTÊNCIA
+# ==========================================
+
+if not df_validos.empty:
+
+    menor = df_validos.loc[
+        df_validos[coluna_potencia].idxmin()
+    ]
+
+    st.subheader("Estado com menor potência instalada")
+
+    st.write(
+        menor["NomUF"],
+        menor[coluna_potencia],
+        "kW"
+    )
+
+
+# ==========================================
+# GRÁFICO POR ESTADO
+# ==========================================
+
 fig = px.bar(
     df,
     x="NomUF",
-    y="MdaPotenciaInstaladakW",
+    y=coluna_potencia,
     title="Potência instalada por estado"
 )
 
@@ -96,6 +156,7 @@ st.plotly_chart(
     fig,
     use_container_width=True
 )
+
 
 st.markdown("""
 ### O que podemos observar?
@@ -109,51 +170,63 @@ As diferenças observadas mostram apenas os valores registrados na base e
 não permitem afirmar as causas dessas diferenças.
 """)
 
-# Potência ao longo do tempo
-potencia_tempo = (
-    df.groupby(
-        ["AnoReferencia", "MesReferencia"]
-    )["MdaPotenciaInstaladakW"]
-    .sum()
-    .reset_index()
-)
 
-potencia_tempo["Data"] = pd.to_datetime(
-    potencia_tempo["AnoReferencia"].astype(str)
-    + "-"
-    + potencia_tempo["MesReferencia"].astype(str)
-    + "-01"
-)
+# ==========================================
+# POTÊNCIA AO LONGO DO TEMPO
+# ==========================================
 
-potencia_tempo = potencia_tempo.sort_values("Data")
+if "AnoReferencia" in df.columns and "MesReferencia" in df.columns:
 
-st.subheader(
-    "Houve mudanças na potência ao longo do tempo?"
-)
+    potencia_tempo = (
+        df.groupby(
+            ["AnoReferencia", "MesReferencia"]
+        )[coluna_potencia]
+        .sum()
+        .reset_index()
+    )
 
-fig_tempo = px.line(
-    potencia_tempo,
-    x="Data",
-    y="MdaPotenciaInstaladakW",
-    title="Potência instalada ao longo do tempo",
-    markers=True
-)
+    potencia_tempo["Data"] = pd.to_datetime(
+        potencia_tempo["AnoReferencia"].astype(str)
+        + "-"
+        + potencia_tempo["MesReferencia"].astype(str)
+        + "-01",
+        errors="coerce"
+    )
 
-st.plotly_chart(
-    fig_tempo,
-    use_container_width=True
-)
+    potencia_tempo = potencia_tempo.sort_values("Data")
 
-st.markdown("""
-### O que podemos observar?
+    st.subheader(
+        "Houve mudanças na potência ao longo do tempo?"
+    )
 
-O gráfico mostra como a potência instalada registrada varia ao longo do tempo.
+    fig_tempo = px.line(
+        potencia_tempo,
+        x="Data",
+        y=coluna_potencia,
+        title="Potência instalada ao longo do tempo",
+        markers=True
+    )
 
-É possível identificar períodos em que os valores aumentaram ou diminuíram.
+    st.plotly_chart(
+        fig_tempo,
+        use_container_width=True
+    )
 
-A base mostra essas variações, mas não permite afirmar quais foram as causas
-dessas mudanças.
-""")
+    st.markdown("""
+    ### O que podemos observar?
+
+    O gráfico mostra como a potência instalada registrada varia ao longo do tempo.
+
+    É possível identificar períodos em que os valores aumentaram ou diminuíram.
+
+    A base mostra essas variações, mas não permite afirmar quais foram as causas
+    dessas mudanças.
+    """)
+
+
+# ==========================================
+# INFORMAÇÕES IMPORTANTES
+# ==========================================
 
 st.markdown("""
 ### Informações importantes
